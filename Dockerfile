@@ -1,5 +1,5 @@
-# AI Receptionist — production image (pipeline voice agent).
-# Runs the FastAPI pipeline server (whisper-1 + gpt-4o-mini + gpt-4o-mini-tts)
+# AI Receptionist — production image (OpenAI Realtime voice agent).
+# Runs the FastAPI Realtime server (gpt-realtime-2.1, sub-second, interruptible)
 # on Fly.io free tier (always-on, $0) with a stable public URL.
 FROM python:3.12-slim
 
@@ -20,4 +20,4 @@ ENV PORT=5050
 ENV BUSINESS_MODULE=webservices
 
 EXPOSE 5050
-CMD ["sh", "-c", "uvicorn pipeline_server:app --host 0.0.0.0 --port ${PORT:-5050}"]
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-5050}"]
