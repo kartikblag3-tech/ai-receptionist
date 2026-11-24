@@ -46,9 +46,6 @@ from fastapi.responses import PlainTextResponse
 
 import tools
 
-sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
-from dynamic_credentials import dynamic_credential_entry
-
 load_dotenv()
 
 BUSINESS_MODULE = os.environ.get("BUSINESS_MODULE", "webservices")
@@ -78,10 +75,14 @@ def _stream_url() -> str:
 def _openai_key() -> str:
     """Bearer token for OpenAI. On a cloud host, use the raw key from the
     OPENAI_API_KEY environment variable. On this VM, use a surrogate from
-    the vault (the raw key is never in a file here)."""
+    the vault (the raw key is never in a file here). The vault import is
+    lazy so the module also loads on a cloud host that has no vault."""
     raw = os.environ.get("OPENAI_API_KEY", "").strip()
     if raw:
         return raw
+    sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
+    from dynamic_credentials import dynamic_credential_entry
+
     return dynamic_credential_entry("custom.openai", "access_token")["surrogate"]
 
 
