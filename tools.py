@@ -45,6 +45,41 @@ BUSINESS_PHONE = TWILIO_NUMBER
 
 GWS_CLI = "/opt/hatch/bin/hatch_gws_cli"
 
+# Google Calendar API via a service account (the Fly.io server cannot run
+# the Muse GWS CLI, so the deployed line reads/writes calendars through the
+# Calendar API instead). GOOGLE_SERVICE_ACCOUNT_JSON holds the service
+# account key JSON (as a Fly.io secret). When it is set, the API is used;
+# otherwise the GWS CLI is used (local VM). Both paths are best-effort.
+try:
+    from google.oauth2 import service_account as _g_sa
+    from googleapiclient.discovery import build as _g_build
+    _GCAL_API_AVAILABLE = True
+except Exception:  # noqa: BLE001 - google libs not installed
+    _g_sa = None
+    _g_build = None
+    _GCAL_API_AVAILABLE = False
+
+_GCAL_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+_gcal_service = None
+
+
+def _gcal():
+    """Google Calendar API client from the service account, or None when
+    the key is not configured / the libs are missing. Cached after first build."""
+    global _gcal_service
+    if _gcal_service is not None:
+        return _gcal_service
+    key_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not key_json or not _GCAL_API_AVAILABLE:
+        return None
+    try:
+        info = json.loads(key_json)
+        creds = _g_sa.Credentials.from_service_account_info(info, scopes=_GCAL_SCOPES)
+        _gcal_service = _g_build("calendar", "v3", credentials=creds)
+        return _gcal_service
+    except Exception:  # noqa: BLE001 - bad key / no network
+        return None
+
 
 def _twilio() -> Client:
     return Client(TWILIO_SID, TWILIO_TOKEN)
@@ -72,6 +107,21 @@ def _calendar_insert(summary: str, start: datetime, end: datetime, description: 
     """Best-effort Google Calendar event via the connected-account CLI.
     Returns {ok, event_id or error}. Never raises — a missing calendar link
     must not break a booking."""
+    svc = _gcal()
+    if svc is not None:
+        try:
+            ev = svc.events().insert(
+                calendarId=calendar_id,
+                sendUpdates="all",
+                body={"summary": summary, "description": description,
+                      "start": {"dateTime": start.isoformat()},
+                      "end": {"dateTime": end.isoformat()}},
+            ).execute()
+            if ev.get("id"):
+                return {"ok": True, "event_id": ev["id"]}
+            return {"ok": False, "error": "no event id returned"}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
     try:
         body = {
             "summary": summary,
@@ -96,6 +146,17 @@ def _calendar_insert(summary: str, start: datetime, end: datetime, description: 
 def _calendar_patch(event_id: str, start: datetime, end: datetime,
                     calendar_id: str = "primary") -> dict:
     """Best-effort move of a calendar event. Never raises."""
+    svc = _gcal()
+    if svc is not None:
+        try:
+            svc.events().patch(
+                calendarId=calendar_id, eventId=event_id, sendUpdates="all",
+                body={"start": {"dateTime": start.isoformat()},
+                      "end": {"dateTime": end.isoformat()}},
+            ).execute()
+            return {"ok": True, "event_id": event_id}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
     try:
         body = {"start": {"dateTime": start.isoformat()}, "end": {"dateTime": end.isoformat()}}
         out = subprocess.run(
@@ -114,6 +175,14 @@ def _calendar_patch(event_id: str, start: datetime, end: datetime,
 
 def _calendar_delete(event_id: str, calendar_id: str = "primary") -> dict:
     """Best-effort delete of a calendar event. Never raises."""
+    svc = _gcal()
+    if svc is not None:
+        try:
+            svc.events().delete(calendarId=calendar_id, eventId=event_id,
+                                sendUpdates="all").execute()
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
     try:
         out = subprocess.run(
             [GWS_CLI, "calendar", "events", "delete",
@@ -191,6 +260,26 @@ def _busy_intervals(calendar_id: str, start: datetime, end: datetime):
     """Busy intervals in [start, end) for one calendar, as (start, end)
     datetimes in the salon timezone. Returns [] when free, None when the
     query failed (calendar not connected, bad id, ...). Never raises."""
+    svc = _gcal()
+    if svc is not None:
+        try:
+            res = svc.freebusy().query(body={
+                "timeMin": start.isoformat(), "timeMax": end.isoformat(),
+                "items": [{"id": calendar_id}],
+            }).execute()
+            entry = (res.get("calendars") or {}).get(calendar_id) or {}
+            busy = entry.get("busy") or []
+            intervals = []
+            for b in busy:
+                try:
+                    bs = datetime.fromisoformat(str(b["start"]).replace("Z", "+00:00"))
+                    be = datetime.fromisoformat(str(b["end"]).replace("Z", "+00:00"))
+                    intervals.append((bs.astimezone(TZ), be.astimezone(TZ)))
+                except (KeyError, ValueError, TypeError):
+                    continue
+            return intervals
+        except Exception:  # noqa: BLE001
+            return None
     try:
         body = {"timeMin": start.isoformat(), "timeMax": end.isoformat(),
                 "items": [{"id": calendar_id}]}
