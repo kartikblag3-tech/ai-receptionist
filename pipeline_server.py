@@ -193,10 +193,22 @@ async def _speak(text: str) -> bytes:
 
 
 def _mulaw_rms(chunk: bytes) -> float:
-    """Rough loudness of a mu-law chunk (0-255 per byte, 128 is silence)."""
+    """Loudness of a mu-law chunk. Decodes G.711 mu-law to linear PCM first:
+    raw mu-law bytes do NOT linearly represent amplitude (silence is 0xFF,
+    so measuring deviation from 128 wrongly treats silence as loud speech
+    and the turn never ends). Returns RMS of the linear samples."""
     if not chunk:
         return 0.0
-    return sum(abs(b - 128) for b in chunk) / len(chunk)
+    total = 0.0
+    for b in chunk:
+        u = (~b) & 0xFF
+        sign = -1 if (u & 0x80) else 1
+        exp = (u >> 4) & 0x07
+        mant = u & 0x0F
+        sample = ((mant << 3) + 0x84) << exp
+        sample -= 0x84
+        total += (sign * sample) ** 2
+    return (total / len(chunk)) ** 0.5
 
 
 @app.get("/")
@@ -421,7 +433,7 @@ async def media_pipeline(ws: WebSocket):
             if event == "media":
                 payload = base64.b64decode(json.loads(raw)["media"]["payload"])
                 rms = _mulaw_rms(payload)
-                if rms > 4:  # speech (not silence)
+                if rms > 150:  # speech (linear RMS; silence is ~0)
                     if playing:
                         # Barge-in: caller spoke over the agent — stop playback.
                         stop_play.set()
