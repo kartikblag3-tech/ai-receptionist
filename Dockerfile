@@ -17,7 +17,7 @@ RUN mkdir -p data
 
 # Fly.io sets PORT; default to 5050 for local runs.
 ENV PORT=5050
-ENV BUSINESS_MODULE=webservices
+ENV BUSINESS_MODULE=salon_demo
 
 EXPOSE 5050
 CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-5050}"]

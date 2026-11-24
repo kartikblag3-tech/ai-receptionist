@@ -42,6 +42,9 @@ load_dotenv()
 # build_instructions(today), TOOLS.
 BUSINESS_MODULE = os.environ.get("BUSINESS_MODULE", "webservices")
 biz = importlib.import_module(BUSINESS_MODULE)
+# Give the tools the business config (stylist hours, per-stylist calendars)
+# so availability checking can read them.
+tools.configure_business(biz)
 
 TZ = ZoneInfo("America/Toronto")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -177,6 +180,12 @@ async def _run_tool(name: str, args: dict, call_sid: str) -> dict:
             address=args.get("address", ""), date=args.get("date", ""),
             time=args.get("time", ""), time_text=args.get("time_text", ""),
             call_sid=call_sid,
+        )
+    if name == "check_availability":
+        return tools.check_availability(
+            service=args.get("service", ""), stylist=args.get("stylist", ""),
+            date=args.get("date", ""), time=args.get("time", ""),
+            duration_min=int(args.get("duration_min", 60) or 60),
         )
     if name == "book_appointment":
         return tools.book_appointment(

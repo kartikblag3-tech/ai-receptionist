@@ -9,7 +9,7 @@ primary_region = "yyz"  # Toronto — closest to the user and the callers.
 
 [env]
   PORT = "5050"
-  BUSINESS_MODULE = "webservices"
+  BUSINESS_MODULE = "salon_demo"
 
 [http_service]
   internal_port = 5050
