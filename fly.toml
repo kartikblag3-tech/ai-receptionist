@@ -1,0 +1,26 @@
+# Fly.io — long-term free hosting for the AI receptionist.
+# Free tier: up to 3 shared-CPU VMs, always-on (no cold start), $0.
+# Deploy: flyctl launch (or flyctl deploy once the app exists).
+# Secrets (set with `flyctl secrets set`): TWILIO_ACCOUNT_SID,
+# TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, OPENAI_API_KEY, OWNER_PHONE,
+# PUBLIC_BASE_URL (the app's https://<name>.fly.dev URL).
+app = "kartik-ai-receptionist"
+primary_region = "yyz"  # Toronto — closest to the user and the callers.
+
+[env]
+  PORT = "5050"
+  BUSINESS_MODULE = "webservices"
+
+[http_service]
+  internal_port = 5050
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"

@@ -1,0 +1,19 @@
+# Deploy the AI receptionist to Fly.io on every push to main.
+# The build runs on GitHub's runner (Docker available, no proxy),
+# so it avoids the egress-proxy builder block on the dev VM.
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

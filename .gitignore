@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/
+*.log
+flyctl
+gh
+cloudflared
+ngrok
+.DS_Store
