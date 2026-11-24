@@ -92,11 +92,15 @@ def _surrogate() -> str:
 
 
 def _http_client() -> httpx.AsyncClient:
-    """httpx client that works through the egress proxy. trust_env=False
-    avoids a proxy-parsing bug with the bracketed IPv6 entries in NO_PROXY;
-    the proxy and the egress CA bundle are set explicitly instead."""
+    """httpx client for OpenAI. On this VM it works through the egress proxy
+    (trust_env=False avoids a proxy-parsing bug with the bracketed IPv6
+    entries in NO_PROXY; the proxy and the egress CA bundle are set
+    explicitly). On a cloud host there is no egress proxy and no CA bundle
+    file, so it uses the defaults — the bundle path is only used when the
+    file actually exists."""
     proxy = os.environ.get("https_proxy") or os.environ.get("HTTPS_PROXY") or ""
-    verify = os.environ.get("SSL_CERT_FILE", "/run/hatch/egress-tls/ca-bundle.pem")
+    ca_bundle = os.environ.get("SSL_CERT_FILE", "/run/hatch/egress-tls/ca-bundle.pem")
+    verify = ca_bundle if os.path.exists(ca_bundle) else True
     return httpx.AsyncClient(timeout=60.0, trust_env=False, proxy=proxy or None,
                              verify=verify)
 
