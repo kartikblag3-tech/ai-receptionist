@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py pipeline_server.py tools.py webservices.py salon.py osmora.py ./
+COPY server.py pipeline_server.py tools.py webservices.py salon.py salon_demo.py osmora.py ./
 RUN mkdir -p data
 
 # Fly.io sets PORT; default to 5050 for local runs.
