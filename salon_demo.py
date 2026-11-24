@@ -60,9 +60,9 @@ STYLIST_HOURS = {
 # (see the setup script); empty until then — availability checking then
 # reports that the calendar is not connected yet instead of guessing.
 STYLIST_CALENDARS = {
-    "Ava": "",
-    "Maya": "",
-    "Sofia": "",
+    "Ava": "10230f91934343c7aad3d9e13047c1c201f019c5a5a7a33181ddd8c12cd88050@group.calendar.google.com",
+    "Maya": "3220de5767aaca56e1ceb0c3dbd9fa5042e7d6901633fdf509456937db8df30b@group.calendar.google.com",
+    "Sofia": "1674cf669ed0ec565acedbcf7914604abf9f1e55db13dbc78cdf2001e5f2b7ad@group.calendar.google.com",
 }
 
 HOURS = "Monday to Saturday 9:00 AM to 7:00 PM, Sunday 10:00 AM to 5:00 PM"
